@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Premium Calculator v95</title>
+    <style>
+        body { background-color: #0d0d0d; color: #e0e0e0; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; font-family: sans-serif; }
+        header { background: #1a1a1a; padding: 8px 0; text-align: center; border-bottom: 2px solid #d4af37; flex: 0 0 auto; }
+        h1 { margin: 0; font-size: 1.2rem; color: #d4af37; letter-spacing: 2px; }
+        
+        /* 概要表示（中央配置のオーバーレイ） */
+        #summary-overlay { 
+            display: none; 
+            position: absolute; 
+            top: 50%; left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 85%; 
+            background: #222; 
+            color: #ffd700; 
+            padding: 20px; 
+            font-size: 1rem; 
+            text-align: center; 
+            border: 2px solid #d4af37; 
+            border-radius: 10px;
+            line-height: 1.6; 
+            font-weight: bold; 
+            z-index: 1000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        #display-container { flex: 0 0 70px; display: flex; align-items: center; padding: 0 20px; background: #000; }
+        #display { width: 100%; font-size: 2.8rem; text-align: right; border: none; background: transparent; color: #fff; outline: none; }
+        .mode-selector { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: #222; flex: 0 0 auto; height: 42px; margin-top: 2px; }
+        .mode-btn { height: 100%; font-size: 0.7rem; border: none; cursor: pointer; background: #333; color: #aaa; padding: 0 0 4px 0; font-weight: bold; display: flex; align-items: center; justify-content: center; }
+        .mode-btn.active { background: #d4af37 !important; color: #000 !important; }
+        .key-area { flex: 0 0 420px; padding: 5px 5px 0 5px; background: #111; margin-top: 5px !important; }
+        .keypad, .ext-panel { display: none; grid-template-columns: repeat(4, 1fr); gap: 2px; height: 100%; }
+        #panel-basic { display: grid; }
+        button { border: none; border-radius: 4px; font-size: 2.4rem; cursor: pointer; background: #262626; color: #fff; height: 100%; min-height: 78px; display: flex; align-items: center; justify-content: center; }
+        .op { color: #d4af37; }
+        .equal { background: #d4af37; color: #000; }
+        .ac { color: #ff4d4d; font-size: 2rem; }
+        .premium-ui { grid-column: span 4; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid #333; height: 100%; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; }
+        label { display: block; font-size: 0.75rem; color: #ffd700; font-weight: bold;}
+        input, select { width: 100%; height: 45px; background: #2a2a2a; border: 1px solid #d4af37; color: #fff; border-radius: 4px; font-size: 1rem; padding: 0 5px; box-sizing: border-box; }
+        input[type="range"] { -webkit-appearance: none; background: #333; height: 8px; border-radius: 4px; margin: 10px 0; border:none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; background: #d4af37; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; }
+        .result-box { background: #000; border: 2px solid #d4af37; text-align: center; height: 75px; display: flex; align-items: center; justify-content: center; margin-top: 5px; overflow: hidden; }
+        .res-main { font-size: 0.95rem; font-weight: bold; color: #fff; line-height: 1.2; }
+        .calc-action-btn { width: 100%; height: 50px; background: #d4af37; color: #000; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; font-size: 1.4rem; }
+        .bottom-area { flex: 1; display: grid; grid-template-columns: 70px 1fr 70px; gap: 4px; padding: 4px 4px 8px 4px; background: #000; }
+        .side-bar { background: #1a1a1a; border: 1px solid #333; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 2rem; position: relative; cursor: pointer; height: 100%; color: #d4af37; }
+        #history-box { border: 1px solid #333; border-radius: 8px; background: #050505; display: flex; flex-direction: column; overflow: hidden; height: 100%; position: relative; }
+        #history-list { flex: 1; overflow-y: auto; padding: 8px; font-size: 0.85rem; color: #888; }
+        .history-clear { position: absolute; top: 6px; right: 6px; font-size: 0.9rem; background: #333; color: #ff4d4d; border: 1px solid #ff4d4d; border-radius: 4px; cursor: pointer; padding: 6px 12px; z-index: 10; font-weight: bold; }
+        .hidden { display: none !important; }
+        .flex-row { display: flex; gap: 5px; align-items: flex-end; }
+        .sync-btn { width: 60px; height: 45px; font-size: 0.9rem; background: #2a2a2a; color: #fff; border: 1px solid #d4af37; border-radius: 4px; cursor: pointer; font-weight: bold; box-sizing: border-box; display: flex; align-items: center; justify-content: center; margin: 0; padding: 0; }
+    </style>
+</head>
+<body>
+<header><h1 id="main-title">PREMIUM CALCULATOR</h1></header>
+
+<div id="summary-overlay" onclick="toggleSummary()">
+    当電卓は基本機能、接頭語、値数、科学計算、レート、税金計算、試算、言語、履歴がご利用いただけます<br><br>
+    ※希に不具合が起こる場合がございますので予めご了承ください<br><br>
+    <small>(クリックで閉じる)</small>
+</div>
+
+<div id="display-container"><input type="text" id="display" value="0" readonly></div>
+<div class="mode-selector">
+    <button class="mode-btn active" id="m-basic" onclick="showPanel('basic', this)">基本</button>
+    <button class="mode-btn" id="m-unit" onclick="showPanel('unit', this)">接頭語</button>
+    <button class="mode-btn" id="m-stats" onclick="showPanel('stats', this)">値数</button>
+    <button class="mode-btn" id="m-sci" onclick="showPanel('sci', this)">科学</button>
+    <button class="mode-btn" id="m-rate" onclick="showPanel('rate', this)">レート</button>
+    <button class="mode-btn" id="m-tax" onclick="showPanel('tax', this)">税金</button>
+    <button class="mode-btn" id="m-tc" onclick="showPanel('tc', this)">試算</button>
+</div>
+<div class="key-area">
+    <div id="panel-basic" class="keypad">
+        <button class="ac" onclick="clearAll()">AC</button><button class="op" onclick="add('(')">(</button><button class="op" onclick="add(')')">)</button><button class="op" onclick="add('÷')">÷</button>
+        <button onclick="add('7')">7</button><button onclick="add('8')">8</button><button onclick="add('9')">9</button><button class="op" onclick="add('×')">×</button>
+        <button onclick="add('4')">4</button><button onclick="add('5')">5</button><button onclick="add('6')">6</button><button class="op" onclick="add('-')">-</button>
+        <button onclick="add('1')">1</button><button onclick="add('2')">2</button><button onclick="add('3')">3</button><button class="op" onclick="add('+')">+</button>
+        <button onclick="add('0')">0</button><button onclick="add('.')">.</button><button class="op" onclick="add(',')">,</button><button class="equal" onclick="calculate()">=</button>
+    </div>
+    <div id="panel-unit" class="ext-panel" style="grid-template-columns: repeat(6, 1fr);">
+        <script>['Q','R','Y','Z','E','P','T','G','M','k','h','da','d','c','m','μ','n','p','f','a','z','y','r','q'].forEach(u => document.write(`<button style="color:#d4af37;" onclick="add('${u}')">${u}</button>`));</script>
+    </div>
+    <div id="panel-stats" class="ext-panel">
+        <button id="s-avg" onclick="add('平均値(')">平均</button><button id="s-mid" onclick="add('中央値(')">中央</button><button id="s-mod" onclick="add('最頻値(')">最頻</button><button id="s-dev" onclick="add('偏差値(')">偏差</button>
+        <button id="s-max" onclick="add('最大値(')">最大</button><button id="s-min" onclick="add('最小値(')">最小</button><button class="op" onclick="add(',')">,</button><button class="op" onclick="add(')')">)</button>
+    </div>
+    <div id="panel-sci" class="ext-panel">
+        <button onclick="add('sin(')">sin</button><button onclick="add('cos(')">cos</button><button onclick="add('tan(')">tan</button><button onclick="add('√(')">√</button>
+        <button class="op" onclick="add('^')">^</button><button onclick="add('i')">i</button><button onclick="add('°')">°</button><button onclick="add('π')">π</button>
+        <button onclick="add('e')">e</button><button onclick="add('log(')">log</button><button onclick="add('⁻')">(-)</button><button class="op" onclick="add(')')">)</button>
+    </div>
+    <div id="panel-rate" class="ext-panel">
+        <div class="premium-ui">
+            <div class="flex-row">
+                <div style="flex:1"><label id="l-rate-amt">金額</label><input type="text" id="rate-amount" value="1"></div>
+                <button id="btn-sync" class="sync-btn" onclick="fetchRate()">更新</button>
+            </div>
+            <div style="display:flex; gap:5px;"><div style="flex:1"><label id="l-rate-from">元</label><select id="rate-from"></select></div><div style="flex:1"><label id="l-rate-to">先</label><select id="rate-to"></select></div></div>
+            <button id="btn-calc-rate" class="calc-action-btn btn-universal" onclick="fetchRate()">計算</button>
+            <div id="rate-result" class="result-box"><span class="res-main">---</span></div>
+        </div>
+    </div>
+    <div id="panel-tax" class="ext-panel">
+        <div class="premium-ui">
+            <label id="l-tax-amt">課税対象額</label><input type="text" id="tax-amount" value="3000000">
+            <div id="tax-people-box" class="hidden">
+                <label id="l-tax-people">法定相続人数: 1</label>
+                <input type="range" id="tax-people-slider" min="1" max="10" value="1" oninput="updateTaxPeople(this.value)">
+            </div>
+            <label id="l-tax-type">税目</label><select id="tax-type" onchange="toggleTaxUI()"></select>
+            <button id="btn-calc-tax" class="calc-action-btn btn-universal" onclick="calcTaxAdvanced()">計算</button>
+            <div id="tax-result" class="result-box"><span class="res-main">---</span></div>
+        </div>
+    </div>
+    <div id="panel-tc" class="ext-panel">
+        <div class="premium-ui">
+            <label id="l-tc-amt">対象金額</label><input type="text" id="tc-amount" value="1000">
+            <div id="tc-day-box" class="hidden">
+                <label id="l-tc-day">1日あたりの使用量</label>
+                <input type="text" id="tc-day-val" value="1">
+            </div>
+            <div id="tc-salary-options">
+                <label id="holiday-label">年間休日: 120日</label>
+                <input type="range" id="tc-holiday-slider" min="0" max="365" value="120" oninput="updateHolidayLabel(this.value)">
+                <label id="l-tc-mode">区分</label>
+                <select id="tc-salary-mode"></select>
+            </div>
+            <select id="tc-type" onchange="toggleTCUI()"></select>
+            <button id="btn-calc-tc" class="calc-action-btn btn-universal" onclick="calcTC()">計算</button>
+            <div id="tax-result-tc" class="result-box"><span class="res-main" id="tc-res-text">---</span></div>
+        </div>
+    </div>
+</div>
+<div class="bottom-area">
+    <div class="side-bar">🌐<select id="lang-select" style="position:absolute;opacity:0;width:100%;height:100%;" onchange="changeLang(this.value)">
+        <option value="ja">日本語</option><option value="en">English</option><option value="zh">中文</option><option value="ko">한국어</option>
+    </select></div>
+    <div id="history-box"><button class="history-clear" onclick="clearHistory()">Clear</button><div id="history-list"></div></div>
+    <div class="side-bar" onclick="toggleSummary()">i</div>
+</div>
+
+<script>
+    const disp = document.getElementById('display');
+    let isCalculated = false, currentLang = 'ja';
+    const PREFIXES = ['Q','R','Y','Z','E','P','T','G','M','k','h','da','d','c','m','μ','n','p','f','a','z','y','r','q'];
+    const OPS = ['+','-','×','÷','^','.',',','⁻','°','i','π','e'];
+
+    function toggleSummary() {
+        const overlay = document.getElementById('summary-overlay');
+        overlay.style.display = (overlay.style.display === 'block') ? 'none' : 'block';
+    }
+
+    const langData = {
+        ja: {title:"PREMIUM CALCULATOR", m1:"基本", m2:"接頭語", m3:"値数", m4:"科学", m5:"レート", m6:"税金", m7:"試算", r_a:"金額", sync:"更新", calc:"計算", from:"元", to:"先", t_a:"課税対象額", t_p:"法定相続人数: ", tc_a:"対象金額", tc_d:"1日あたりの使用量", hol:"年間休日: ", mode:"区分", res_sal:"推定年収: ", res_day:"1日: ", res_mon:"月換算(30日): ", s1:"平均", s2:"中央", s3:"最頻", s4:"偏差", s5:"最大", s6:"最小", tax_opt:["所得税(累進)","住民税(10%)","消費税10%","消費税8%","法人税(標準)","贈与税(一般)","相続税"], sal_opt:["日当として計算","時給として計算"], tc_opt:["給料 (年収計算)","食費 (円)","水道 (m3)","ガス (m3)","電気 (W)"]},
+        en: {title:"PRM CALCULATOR", m1:"Basic", m2:"Prefix", m3:"Stats", m4:"Sci", m5:"Rate", m6:"Tax", m7:"Sim", r_a:"Amount", sync:"Sync", calc:"Calc", from:"From", to:"To", t_a:"Taxable", t_p:"Heirs: ", tc_a:"Target", tc_d:"Daily Usage", hol:"Holidays: ", mode:"Type", res_sal:"Est. Income: ", res_day:"Daily: ", res_mon:"Monthly: ", s1:"Avg", s2:"Mid", s3:"Mode", s4:"Dev", s5:"Max", s6:"Min", tax_opt:["Income Tax","Residence Tax","VAT 10%","VAT 8%","Corp Tax","Gift Tax","Inheritance"], sal_opt:["Calc as Daily","Calc as Hourly"], tc_opt:["Salary (Annual)","Food (¥)","Water (m3)","Gas (m3)","Elec (W)"]},
+        zh: {title:"高级计算器", m1:"基础", m2:"单位", m3:"统计", m4:"科学", m5:"汇率", m6:"税务", m7:"估算", r_a:"金额", sync:"更新", calc:"计算", from:"从", to:"到", t_a:"课税额", t_p:"继承人数: ", tc_a:"对象金额", tc_d:"每日用量", hol:"年假: ", mode:"分类", res_sal:"推定年收: ", res_day:"每日: ", res_mon:"月额: ", s1:"平均", s2:"中值", s3:"众数", s4:"偏差", s5:"最大", s6:"最小", tax_opt:["所得税","住民税","消费税10%","消费税8%","法人税","赠与税","遗产税"], sal_opt:["按日薪計算","按時薪計算"], tc_opt:["薪水 (年收)","伙食 (元)","水费 (m3)","燃气 (m3)","电费 (W)"]},
+        ko: {title:"프리미엄 계산기", m1:"기본", m2:"접두어", m3:"통계", m4:"과학", m5:"환율", m6:"세금", m7:"시뮬", r_a:"금액", sync:"갱신", calc:"계산", from:"기준", to:"대상", t_a:"과세액", t_p:"상속인원: ", tc_a:"대상금액", tc_d:"일일 사용량", hol:"휴일: ", mode:"구분", res_sal:"추정연봉: ", res_day:"하루: ", res_mon:"한달: ", s1:"平均", s2:"中央", s3:"最頻", s4:"偏差", s5:"最大", s6:"最小", tax_opt:["소득세","주민세","소비세10%","소비세8%","법인세","증여세","상속세"], sal_opt:["일당으로 계산","시급으로 계산"], tc_opt:["급여 (연봉)","식비 (원)","수도 (m3)","가스 (m3)","전기 (W)"]}
+    };
+
+    function changeLang(l) {
+        currentLang = l; const d = langData[l]; 
+        document.getElementById('main-title').innerText = d.title;
+        ['m-basic','m-unit','m-stats','m-sci','m-rate','m-tax','m-tc'].forEach((id,i)=>document.getElementById(id).innerText=d['m'+(i+1)]);
+        document.getElementById('l-rate-amt').innerText = d.r_a;
+        document.getElementById('btn-sync').innerText = d.sync;
+        document.getElementById('l-rate-from').innerText = d.from;
+        document.getElementById('l-rate-to').innerText = d.to;
+        document.getElementById('btn-calc-rate').innerText = d.calc;
+        document.getElementById('l-tax-amt').innerText = d.t_a;
+        document.getElementById('btn-calc-tax').innerText = d.calc;
+        updateSelect('tax-type', d.tax_opt);
+        updateTaxPeople(document.getElementById('tax-people-slider').value);
+        document.getElementById('l-tc-amt').innerText = d.tc_a;
+        document.getElementById('l-tc-day').innerText = d.tc_d;
+        document.getElementById('l-tc-mode').innerText = d.mode;
+        document.getElementById('btn-calc-tc').innerText = d.calc;
+        updateSelect('tc-salary-mode', d.sal_opt);
+        updateSelect('tc-type', d.tc_opt);
+        updateHolidayLabel(document.getElementById('tc-holiday-slider').value);
+        ['s-avg','s-mid','s-mod','s-dev','s-max','s-min'].forEach((id,i)=>document.getElementById(id).innerText=d['s'+(i+1)]);
+    }
+
+    function updateSelect(id, opts) {
+        const s = document.getElementById(id); const val = s.value; s.innerHTML = "";
+        opts.forEach((o, i) => { const opt = new Option(o, ''); s.add(opt); });
+        const vals = { 'tax-type':['income','residence','consump10','consump8','corp','gift','inheritance'], 'tc-salary-mode':['day','hour'], 'tc-type':['sal','food','water','gas','elec'] };
+        Array.from(s.options).forEach((opt, i) => opt.value = vals[id][i]); s.value = val || vals[id][0];
+    }
+
+    function parseWithPrefix(str) {
+        let val = parseFloat(str.toString().replace(/,/g, '')); if(isNaN(val)) return 0;
+        const pMap = {'Q':1e30,'R':1e27,'Y':1e24,'Z':1e21,'E':1e18,'P':1e15,'T':1e12,'G':1e9,'M':1e6,'k':1e3,'h':1e2,'da':1e1,'d':1e-1,'c':1e-2,'m':1e-3,'μ':1e-6,'n':1e-9,'p':1e-12,'f':1e-15,'a':1e-18,'z':1e-21,'y':1e-24,'r':1e-27,'q':1e-30};
+        for(let p in pMap) { if(str.toString().includes(p)) { val *= pMap[p]; break; } } return val;
+    }
+
+    function updateHolidayLabel(v) { document.getElementById('holiday-label').innerText = langData[currentLang].hol + v + (currentLang==='ja'||currentLang==='ko'?"日":" Days"); }
+    function updateTaxPeople(v) { document.getElementById('l-tax-people').innerText = langData[currentLang].t_p + v; }
+    function toggleTaxUI() { document.getElementById('tax-people-box').className = (document.getElementById('tax-type').value === 'inheritance') ? '' : 'hidden'; }
+    function toggleTCUI() { const t = document.getElementById('tc-type').value; document.getElementById('tc-day-box').className = (t === 'sal') ? 'hidden' : ''; document.getElementById('tc-salary-options').className = (t === 'sal') ? '' : 'hidden'; }
+    function showPanel(id, btn) { document.querySelectorAll('.keypad, .ext-panel').forEach(p => p.style.display = 'none'); document.getElementById('panel-' + id).style.display = 'grid'; document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+    function clearAll() { disp.value = "0"; isCalculated = false; }
+
+    function add(val) {
+        if (isCalculated) { disp.value = "0"; isCalculated = false; }
+        let cur = disp.value; if (cur === "0") { if (val === "0") return; if (val === "." || val === ",") { disp.value = "0" + val; return; } disp.value = val; return; }
+        const lastChar = cur.slice(-1); const isValFunc = val.includes('('); const isValOp = OPS.includes(val); const isValPrefix = PREFIXES.includes(val);
+        const funcMatch = cur.match(/[^\d\(\)]+\($/); 
+        if (isValFunc && funcMatch) { disp.value = cur.slice(0, -funcMatch[0].length) + val; return; }
+        if (isValOp && OPS.includes(lastChar)) { disp.value = cur.slice(0, -1) + val; return; }
+        if (isValPrefix && PREFIXES.includes(lastChar)) { disp.value = cur.slice(0, -1) + val; return; }
+        if ((isValFunc || isValOp || isValPrefix) && (!!funcMatch || OPS.includes(lastChar) || PREFIXES.includes(lastChar))) return;
+        disp.value = cur + val;
+    }
+
+    function calculate() {
+        try {
+            let s = disp.value.replace(/×/g,'*').replace(/÷/g,'/').replace(/π/g,Math.PI).replace(/e/g,Math.E).replace(/⁻/g,'-').replace(/√\(/g,'Math.sqrt(').replace(/sin\(/g,'Math.sin(').replace(/cos\(/g,'Math.sin(').replace(/tan\(/g,'Math.tan(').replace(/log\(/g,'Math.log10(');
+            const res = eval(s); const item = document.createElement('div'); item.innerHTML = `${disp.value} = <b style="color:#d4af37">${res}</b>`; document.getElementById('history-list').prepend(item); disp.value = res; isCalculated = true;
+        } catch { disp.value = "Error"; isCalculated = true; }
+    }
+
+    async function fetchRate() {
+        const amt = parseWithPrefix(document.getElementById('rate-amount').value);
+        const from = document.getElementById('rate-from').value.toUpperCase();
+        const to = document.getElementById('rate-to').value.toUpperCase();
+        const resBox = document.getElementById('rate-result');
+        resBox.innerHTML = 'Fetching LIVE...';
+        const nocache = Date.now();
+        const url = `https://min-api.cryptocompare.com/data/price?fsym=${from}&tsyms=${to}&extraParams=google_finance_sync&_=${nocache}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            if (data && data[to]) {
+                const rate = data[to];
+                const total = amt * rate;
+                resBox.innerHTML = `<span class="res-main">1 ${from} = ${rate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})} ${to}<br>Total: ${total.toLocaleString(undefined, {maximumFractionDigits: 2})} ${to}</span>`;
+            } else {
+                const res2 = await fetch(`https://open.er-api.com/v6/latest/${from}?nocache=${nocache}`);
+                const data2 = await res2.json();
+                if (data2.rates && data2.rates[to]) {
+                    const rate = data2.rates[to];
+                    const total = amt * rate;
+                    resBox.innerHTML = `<span class="res-main">1 ${from} = ${rate.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 4})} ${to}<br>Total: ${total.toLocaleString(undefined, {maximumFractionDigits: 2})} ${to}</span>`;
+                } else { resBox.innerHTML = 'Market Sync Error'; }
+            }
+        } catch (e) { resBox.innerHTML = 'Connection Failed'; }
+    }
+
+    function calcTaxAdvanced() {
+        const a = parseWithPrefix(document.getElementById('tax-amount').value); let tax = 0, type = document.getElementById('tax-type').value;
+        if(type==='income'){ if(a<=1.95e6) tax=a*0.05; else if(a<=3.3e6) tax=a*0.1-97500; else if(a<=6.95e6) tax=a*0.2-427500; else if(a<=9e6) tax=a*0.23-636000; else if(a<=1.8e7) tax=a*0.33-1536000; else if(a<=4e7) tax=a*0.4-2796000; else tax=a*0.45-4796000; }
+        else if(type==='residence') tax=a*0.1;
+        else if(type==='inheritance'){ const p = parseInt(document.getElementById('tax-people-slider').value); tax = Math.max(0, (a - (3e7 + 6e6 * p)) * 0.15); }
+        else if(type.includes('consump')) tax=a*(type==='consump10'?0.1:0.08);
+        else if(type==='gift') tax=Math.max(0, (a-1.1e6)*0.15);
+        else tax=a*0.15;
+        document.getElementById('tax-result').innerHTML = `<span class="res-main">¥${Math.floor(tax).toLocaleString()}</span>`;
+    }
+
+    function calcTC() {
+        const amt = parseWithPrefix(document.getElementById('tc-amount').value); const d_v = parseWithPrefix(document.getElementById('tc-day-val').value);
+        const type = document.getElementById('tc-type').value; const resEl = document.getElementById('tc-res-text'); const d = langData[currentLang];
+        if (type === 'sal') {
+            const h = parseInt(document.getElementById('tc-holiday-slider').value); const mode = document.getElementById('tc-salary-mode').value;
+            const res = (mode === 'day') ? (365 - h) * amt : (365 - h) * amt * 8;
+            resEl.innerHTML = d.res_sal + `¥${Math.floor(res).toLocaleString()}`;
+        } else {
+            resEl.innerHTML = d.res_day + d_v.toLocaleString() + `<br>` + d.res_mon + (d_v*30).toLocaleString();
+        }
+    }
+
+    function clearHistory() { document.getElementById('history-list').innerHTML = ""; }
+
+    window.onload = () => {
+        const f = document.getElementById('rate-from'), t = document.getElementById('rate-to');
+        ["JPY","USD","EUR","GBP","CNY","AUD","BTC","ETH","XAU","XAG","XPT"].forEach(c => { f.add(new Option(c,c)); t.add(new Option(c,c)); });
+        f.value = "JPY"; t.value = "USD"; changeLang('ja'); toggleTaxUI(); toggleTCUI();
+    };
+</script>
+</body>
+</html>
